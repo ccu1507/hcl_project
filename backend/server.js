@@ -10,6 +10,8 @@ dotenv.config();
 const app = express();
 
 // Middleware
+//we are in middle ware function
+
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
