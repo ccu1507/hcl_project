@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  baseURL: 'https://tbbd2kigze.ap-south-1.awsapprunner.com/',
 });
 
 // Request interceptor to add the JWT token to headers
