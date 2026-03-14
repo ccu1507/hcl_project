@@ -14,6 +14,7 @@ export const createProduct = async (req, res) => {
 
     const product = await Product.create({
       categoryId,
+      sellerId: req.user._id,
       title,
       description,
       cost: Number(cost),
@@ -44,13 +45,18 @@ export const createProduct = async (req, res) => {
 // @route   GET /api/products/admin/all
 export const getAdminProducts = async (req, res) => {
   try {
-    const products = await Product.find({})
+    const products = await Product.find({ sellerId: req.user._id })
       .populate('categoryId', 'name')
       .populate('addons', 'title cost imageUrl')
       .sort({ createdAt: -1 });
 
     // Compute revenue per product from Order history
-    const allOrders = await Order.find({ status: 'Paid' });
+    // Only fetch orders that contain products belonging to this seller
+    const productIds = products.map(p => p._id.toString());
+    const allOrders = await Order.find({ 
+      status: 'Paid',
+      'items.productId': { $in: productIds }
+    });
     const revenueMap = {};
     const unitsSoldMap = {};
 
@@ -137,6 +143,10 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Product not found' });
     }
 
+    if (product.sellerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Not authorized to update this product' });
+    }
+
     // Handle stock change and log ledger
     if (stockQuantity !== undefined && Number(stockQuantity) !== product.stockQuantity) {
       const diff = Number(stockQuantity) - product.stockQuantity;
@@ -181,6 +191,10 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Product not found' });
     }
 
+    if (product.sellerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Not authorized to delete this product' });
+    }
+
     await Product.findByIdAndDelete(id);
     await StockLedger.deleteMany({ productId: id });
 
@@ -205,6 +219,10 @@ export const updateStock = async (req, res) => {
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Product not found' });
+    }
+
+    if (product.sellerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Not authorized to update stock for this product' });
     }
 
     const newStock = product.stockQuantity + Number(changeAmount);

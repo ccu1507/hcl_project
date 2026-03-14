@@ -21,7 +21,7 @@ const AdminProductsPage = () => {
       setLoading(true);
       const [prodRes, catRes] = await Promise.all([
         api.get('/products/admin/all'),
-        api.get('/categories')
+        api.get('/categories/admin/all')
       ]);
       setProducts(prodRes.data);
       setCategories(catRes.data);

@@ -1,6 +1,7 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import StockLedger from '../models/StockLedger.js';
+import { sendOrderReceiptEmail } from '../services/emailService.js';
 
 // @desc    Place a mock order (no payment gateway)
 // @route   POST /api/orders/place
@@ -50,6 +51,14 @@ export const createMockOrder = async (req, res) => {
       });
     }
 
+    // 4. Send Email Receipt
+    // In background, don't await so we don't block the response
+    sendOrderReceiptEmail(req.user.email, req.user.name, {
+      orderId: order._id,
+      items,
+      totalAmount
+    }).catch(err => console.error("Failed to send order email:", err));
+
     res.status(201).json({ success: true, orderId: order._id, message: 'Order placed successfully!' });
   } catch (error) {
     console.error(error);
@@ -76,12 +85,31 @@ export const getOrderHistory = async (req, res) => {
 // @route   GET /api/orders/admin/all
 export const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find({})
+    const sellerId = req.user._id;
+
+    // 1. Get all product IDs belonging to this seller
+    const sellerProducts = await Product.find({ sellerId }).select('_id');
+    const sellerProductIds = sellerProducts.map(p => p._id.toString());
+
+    // 2. Find orders that contain at least one of these products
+    const orders = await Order.find({
+      'items.productId': { $in: sellerProductIds }
+    })
       .populate('userId', 'name email')
-      .populate('items.productId', 'title imageUrl cost')
+      .populate('items.productId', 'title imageUrl cost sellerId')
       .sort({ createdAt: -1 });
 
-    res.json(orders);
+    // 3. (Optional but recommended) Filter the items list within each order 
+    // so the seller only sees THEIR products in the order view.
+    const filteredOrders = orders.map(order => {
+      const orderObj = order.toObject();
+      orderObj.items = orderObj.items.filter(item => 
+        item.productId && item.productId.sellerId?.toString() === sellerId.toString()
+      );
+      return orderObj;
+    });
+
+    res.json(filteredOrders);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Server error fetching all orders' });

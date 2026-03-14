@@ -17,7 +17,7 @@ const AdminCategoriesPage = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get('/categories');
+      const { data } = await api.get('/categories/admin/all');
       setCategories(data);
     } catch (err) {
       console.error('Failed to fetch categories', err);

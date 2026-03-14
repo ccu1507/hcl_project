@@ -6,17 +6,23 @@ import Product from '../models/Product.js';
 export const createCategory = async (req, res) => {
   try {
     const { name, description, logoUrl } = req.body;
+    const sellerId = req.user._id;
 
     if (!name || !description) {
       return res.status(400).json({ error: 'BAD_REQUEST', message: 'Please provide name and description' });
     }
 
-    const categoryExists = await Category.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+    const categoryExists = await Category.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') }, sellerId });
     if (categoryExists) {
-      return res.status(400).json({ error: 'CATEGORY_EXISTS', message: 'Category already exists' });
+      return res.status(400).json({ error: 'CATEGORY_EXISTS', message: 'Category already exists for this seller' });
     }
 
-    const category = await Category.create({ name, description, logoUrl: logoUrl || '' });
+    const category = await Category.create({ 
+      name, 
+      description, 
+      logoUrl: logoUrl || '', 
+      sellerId 
+    });
     res.status(201).json(category);
   } catch (error) {
     console.error(error);
@@ -28,7 +34,19 @@ export const createCategory = async (req, res) => {
 // @route   GET /api/categories
 export const getCategories = async (req, res) => {
   try {
-    const categories = await Category.find({});
+    const categories = await Category.find({}).sort({ name: 1 });
+    res.json(categories);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Server error fetching categories' });
+  }
+};
+
+// @desc    Get all categories for specific admin
+// @route   GET /api/categories/admin/all
+export const getAdminCategories = async (req, res) => {
+  try {
+    const categories = await Category.find({ sellerId: req.user._id }).sort({ createdAt: -1 });
     res.json(categories);
   } catch (error) {
     console.error(error);
@@ -46,6 +64,10 @@ export const updateCategory = async (req, res) => {
     const category = await Category.findById(id);
     if (!category) {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Category not found' });
+    }
+
+    if (category.sellerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Not authorized to update this category' });
     }
 
     const updated = await Category.findByIdAndUpdate(
@@ -83,6 +105,10 @@ export const deleteCategory = async (req, res) => {
         error: 'HAS_PRODUCTS',
         message: `Cannot delete category with ${productCount} product(s). Remove products first.`,
       });
+    }
+
+    if (category.sellerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Not authorized to delete this category' });
     }
 
     await Category.findByIdAndDelete(id);
