@@ -6,7 +6,7 @@ import { Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 const SignupPage = () => {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email_id, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isAdminRole, setIsAdminRole] = useState(false);
@@ -23,7 +23,7 @@ const SignupPage = () => {
     try {
       const { data } = await api.post('/auth/signup', { 
         name, 
-        email, 
+        email_id, 
         password, 
         role: isAdminRole ? 'Admin' : 'User' 
       });
@@ -149,10 +149,10 @@ const SignupPage = () => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <input
-                  id="signup-email"
-                  type="email"
+                  id="signup-email_id"
+                  type="email_id"
                   required
-                  value={email}
+                  value={email_id}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john@example.com"
                   className="input-field pl-11"
